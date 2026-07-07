@@ -1,1 +1,742 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>Ledger — Invoicing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  :root{
+    --ink:#1F2A44;
+    --ink-soft:#3A466B;
+    --bg1:#DFF6F3;
+    --bg2:#F1E9FF;
+    --bg3:#FFF0DE;
+    --glass:rgba(255,255,255,0.55);
+    --glass-strong:rgba(255,255,255,0.75);
+    --glass-border:rgba(255,255,255,0.7);
+    --line:rgba(31,42,68,0.09);
+    --teal:#12B8A6;
+    --teal-dark:#0E9A8A;
+    --violet:#8B6BF0;
+    --coral:#FB6B7A;
+    --gold:#F5A93E;
+    --emerald:#12B886;
+    --slate:#63708A;
+    --slate-light:#98A2BE;
+    --shadow: 0 1px 2px rgba(31,42,68,0.05), 0 10px 30px rgba(89,90,180,0.12);
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html{background:linear-gradient(135deg, var(--bg1) 0%, var(--bg2) 55%, var(--bg3) 100%); background-attachment:fixed;}
+  body{margin:0; font-family:'Inter',sans-serif; color:var(--ink); -webkit-font-smoothing:antialiased; min-height:100vh; position:relative; overflow-x:hidden;}
+  h1,h2,h3,.display{font-family:'Fraunces',serif;}
+  .mono{font-family:'IBM Plex Mono',monospace; font-variant-numeric: tabular-nums;}
+  button{font-family:inherit; cursor:pointer;}
+  input,select,textarea{font-family:inherit; font-size:15px;}
+  a{color:inherit;}
+  ::selection{background:var(--teal); color:white;}
 
+  .blob{position:fixed; border-radius:50%; filter:blur(70px); opacity:0.55; z-index:0; pointer-events:none;}
+  .blob1{width:420px; height:420px; background:var(--teal); top:-140px; left:-120px;}
+  .blob2{width:380px; height:380px; background:var(--violet); top:20%; right:-160px;}
+  .blob3{width:360px; height:360px; background:var(--gold); bottom:-160px; left:20%;}
+
+  #app{max-width:1200px; margin:0 auto; min-height:100vh; display:flex; position:relative; z-index:1;}
+
+  /* ---------- Sidebar (desktop) ---------- */
+  #sidebar{
+    width:220px; flex-shrink:0; background:var(--glass); backdrop-filter:blur(22px) saturate(180%); -webkit-backdrop-filter:blur(22px) saturate(180%);
+    color:var(--ink); padding:28px 20px; display:flex; flex-direction:column; gap:6px;
+    position:sticky; top:0; height:100vh; border-right:1px solid var(--glass-border);
+  }
+  .brand{font-family:'Fraunces',serif; font-size:22px; font-weight:600; letter-spacing:0.3px; margin-bottom:4px; display:flex; align-items:baseline; gap:8px; background:linear-gradient(90deg,var(--teal),var(--violet)); -webkit-background-clip:text; background-clip:text; color:transparent;}
+  .brand .rule{display:block; width:28px; height:3px; background:linear-gradient(90deg,var(--teal),var(--gold)); margin:14px 0 22px; border-radius:2px;}
+  .navitem{
+    display:flex; align-items:center; gap:12px; padding:11px 12px; border-radius:10px;
+    color:var(--slate); text-decoration:none; font-size:14px; font-weight:600; background:none; border:none; text-align:left; width:100%;
+    transition:background .15s, color .15s;
+  }
+  .navitem svg{width:17px; height:17px; opacity:0.85;}
+  .navitem.active{background:linear-gradient(90deg, var(--teal), var(--violet)); color:#fff; box-shadow:0 4px 14px rgba(139,107,240,0.35);}
+  .navitem.active svg{opacity:1;}
+  .navitem:hover:not(.active){background:rgba(255,255,255,0.5); color:var(--ink);}
+  .sidebar-foot{margin-top:auto; font-size:11px; color:var(--slate-light); line-height:1.5;}
+
+  /* ---------- Main ---------- */
+  #main{flex:1; min-width:0; padding:32px 36px 100px; position:relative; z-index:1;}
+  .topbar{display:flex; align-items:baseline; justify-content:space-between; margin-bottom:26px; flex-wrap:wrap; gap:10px;}
+  .topbar h1{font-size:26px; margin:0; font-weight:600; color:var(--ink);}
+  .topbar .sub{color:var(--slate); font-size:13.5px; margin-top:3px;}
+  .btn{
+    display:inline-flex; align-items:center; gap:7px; border:none; border-radius:10px;
+    padding:10px 16px; font-size:13.5px; font-weight:600; background:var(--glass-strong); color:var(--ink);
+    backdrop-filter:blur(10px); border:1px solid var(--glass-border);
+    transition:transform .08s ease, opacity .15s, box-shadow .15s;
+  }
+  .btn:active{transform:scale(0.97);}
+  .btn.brass{background:linear-gradient(90deg, var(--teal), var(--violet)); color:#fff; border:none; box-shadow:0 6px 18px rgba(139,107,240,0.35);}
+  .btn.brass:hover{box-shadow:0 8px 22px rgba(139,107,240,0.45);}
+  .btn.ghost{background:rgba(255,255,255,0.4); color:var(--ink); border:1px solid var(--glass-border);}
+  .btn.ghost:hover{background:rgba(255,255,255,0.65);}
+  .btn.danger{background:rgba(251,107,122,0.12); color:var(--coral); border:1px solid rgba(251,107,122,0.3);}
+  .btn.sm{padding:7px 12px; font-size:12.5px;}
+  .btn:disabled{opacity:0.45; cursor:not-allowed;}
+
+  /* ---------- Cards / stats ---------- */
+  .stats{display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:28px;}
+  .stat{background:var(--glass); backdrop-filter:blur(18px) saturate(180%); -webkit-backdrop-filter:blur(18px) saturate(180%); border:1px solid var(--glass-border); border-radius:16px; padding:18px 20px; box-shadow:var(--shadow);}
+  .stat .label{font-size:11.5px; text-transform:uppercase; letter-spacing:0.06em; color:var(--slate); font-weight:700;}
+  .stat .value{font-family:'IBM Plex Mono',monospace; font-size:26px; margin-top:8px; font-weight:600;}
+  .stat.outstanding .value{color:var(--gold);}
+  .stat.overdue .value{color:var(--coral);}
+  .stat.paid .value{color:var(--emerald);}
+
+  .panel{background:var(--glass); backdrop-filter:blur(18px) saturate(180%); -webkit-backdrop-filter:blur(18px) saturate(180%); border:1px solid var(--glass-border); border-radius:16px; box-shadow:var(--shadow); overflow:hidden;}
+  .panel-head{padding:16px 20px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center;}
+  .panel-head h3{margin:0; font-size:15px; font-weight:600;}
+
+  /* ---------- Lists ---------- */
+  .row-item{display:flex; align-items:center; justify-content:space-between; padding:14px 20px; border-bottom:1px solid var(--line); cursor:pointer; transition:background .1s;}
+  .row-item:last-child{border-bottom:none;}
+  .row-item:hover{background:rgba(255,255,255,0.4);}
+  .row-left{min-width:0;}
+  .row-title{font-weight:600; font-size:14.5px; color:var(--ink);}
+  .row-sub{font-size:12.5px; color:var(--slate); margin-top:2px;}
+  .row-right{text-align:right; flex-shrink:0; padding-left:14px;}
+  .row-amount{font-family:'IBM Plex Mono',monospace; font-weight:600; font-size:15px;}
+  .empty{padding:48px 20px; text-align:center; color:var(--slate-light);}
+  .empty .display{font-size:17px; color:var(--slate); margin-bottom:6px;}
+
+  .tag{display:inline-block; font-size:10.5px; font-weight:700; letter-spacing:0.05em; text-transform:uppercase; padding:3px 8px; border-radius:6px;}
+  .tag.draft{background:rgba(99,112,138,0.14); color:var(--slate);}
+  .tag.sent{background:rgba(245,169,62,0.16); color:var(--gold);}
+  .tag.paid{background:rgba(18,184,134,0.14); color:var(--emerald);}
+  .tag.overdue{background:rgba(251,107,122,0.14); color:var(--coral);}
+
+  /* ---------- Search / filter bar ---------- */
+  .toolbar{display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap;}
+  .toolbar input[type=text]{flex:1; min-width:160px; padding:10px 14px; border:1px solid var(--glass-border); border-radius:10px; background:var(--glass-strong); backdrop-filter:blur(10px);}
+  .toolbar select{padding:10px 12px; border:1px solid var(--glass-border); border-radius:10px; background:var(--glass-strong);}
+  .chip-row{display:flex; gap:6px; flex-wrap:wrap;}
+  .chip{padding:6px 12px; border-radius:20px; border:1px solid var(--glass-border); font-size:12.5px; font-weight:600; background:var(--glass-strong); color:var(--slate);}
+  .chip.active{background:linear-gradient(90deg,var(--teal),var(--violet)); color:#fff; border-color:transparent;}
+
+  /* ---------- Forms ---------- */
+  .field{margin-bottom:16px;}
+  .field label{display:block; font-size:12.5px; font-weight:700; color:var(--slate); margin-bottom:6px; text-transform:uppercase; letter-spacing:0.04em;}
+  .field input, .field select, .field textarea{
+    width:100%; padding:11px 13px; border:1px solid var(--glass-border); border-radius:10px; background:rgba(255,255,255,0.7); color:var(--ink);
+  }
+  .field textarea{resize:vertical; min-height:70px;}
+  .field input:focus, .field select:focus, .field textarea:focus{outline:2px solid var(--teal); outline-offset:1px; border-color:var(--teal);}
+  .field-row{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+  .form-wrap{max-width:640px;}
+
+  /* line items editor */
+  .li-row{display:grid; grid-template-columns:1fr 60px 90px 90px 34px; gap:8px; align-items:center; margin-bottom:8px;}
+  .li-row input{padding:9px 10px; border:1px solid var(--glass-border); border-radius:8px; background:rgba(255,255,255,0.7);}
+  .li-total{font-family:'IBM Plex Mono',monospace; font-size:13.5px; text-align:right; color:var(--slate);}
+  .li-del{background:none; border:none; color:var(--slate-light); font-size:18px; line-height:1;}
+  .li-del:hover{color:var(--coral);}
+  .li-head{display:grid; grid-template-columns:1fr 60px 90px 90px 34px; gap:8px; font-size:10.5px; text-transform:uppercase; letter-spacing:0.05em; color:var(--slate-light); margin-bottom:8px; font-weight:700;}
+
+  .totals-box{margin-top:18px; padding:16px 18px; background:rgba(255,255,255,0.55); backdrop-filter:blur(12px); border:1px solid var(--glass-border); border-radius:12px;}
+  .totals-line{display:flex; justify-content:space-between; font-size:14px; padding:5px 0; color:var(--ink-soft);}
+  .totals-line.grand{font-weight:700; font-size:18px; color:var(--ink); border-top:1px solid var(--line); margin-top:6px; padding-top:12px; font-family:'IBM Plex Mono',monospace;}
+
+  /* ---------- Invoice preview (paper) ---------- */
+  .preview-wrap{display:flex; justify-content:center;}
+  #invoice-paper{
+    background:#fff; width:100%; max-width:640px; padding:44px 40px; position:relative;
+    box-shadow:0 20px 50px rgba(89,90,180,0.18); border:1px solid var(--line); border-radius:14px; overflow:hidden;
+  }
+  .paper-head{display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:34px; gap:16px;}
+  .paper-head img{max-width:120px; max-height:60px; object-fit:contain;}
+  .biz-name{font-family:'Fraunces',serif; font-size:20px; font-weight:600;}
+  .biz-meta{font-size:12px; color:var(--slate); line-height:1.6; margin-top:4px;}
+  .inv-meta{text-align:right;}
+  .inv-meta .inv-label{font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--slate-light); font-weight:700;}
+  .inv-meta .inv-num{font-family:'IBM Plex Mono',monospace; font-size:19px; font-weight:600; margin:2px 0 10px;}
+  .inv-dates{font-size:12px; color:var(--slate); line-height:1.7;}
+  .bill-to{font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--slate-light); font-weight:700; margin-bottom:6px;}
+  .bill-to-name{font-weight:600; font-size:15px;}
+  .bill-to-meta{font-size:12.5px; color:var(--slate); line-height:1.6;}
+  table.items{width:100%; border-collapse:collapse; margin:28px 0 0;}
+  table.items thead th{
+    text-align:left; font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--slate-light);
+    padding:0 0 8px; border-bottom:2px solid var(--ink); font-weight:700;
+  }
+  table.items thead th.num{text-align:right;}
+  table.items tbody td{padding:10px 0; border-bottom:1px solid var(--line); font-size:13.5px; vertical-align:top;}
+  table.items tbody td.num{text-align:right; font-family:'IBM Plex Mono',monospace;}
+  .paper-totals{margin-left:auto; width:230px; margin-top:6px;}
+  .paper-totals .tline{display:flex; justify-content:space-between; font-size:13px; padding:5px 0; color:var(--ink-soft);}
+  .paper-totals .tline.grand{font-weight:700; font-size:17px; border-top:2px solid var(--ink); margin-top:6px; padding-top:10px; font-family:'IBM Plex Mono',monospace;}
+  .paper-notes{margin-top:30px; padding-top:16px; border-top:1px solid var(--line); font-size:12px; color:var(--slate); white-space:pre-wrap;}
+  .paper-foot{margin-top:40px; text-align:center; font-size:10.5px; color:var(--slate-light); letter-spacing:0.04em;}
+
+  .stamp{
+    position:absolute; top:64px; right:36px; font-family:'IBM Plex Mono',monospace; font-weight:700;
+    font-size:26px; letter-spacing:0.1em; padding:8px 18px; border:3px solid; border-radius:8px;
+    transform:rotate(-9deg); opacity:0.85; text-transform:uppercase;
+  }
+  .stamp.paid{color:var(--emerald); border-color:var(--emerald);}
+  .stamp.overdue{color:var(--coral); border-color:var(--coral);}
+  .stamp.sent{color:var(--gold); border-color:var(--gold);}
+
+  .action-row{display:flex; gap:10px; flex-wrap:wrap; margin:20px 0; justify-content:center;}
+
+  /* ---------- Modal ---------- */
+  .modal-bg{position:fixed; inset:0; background:rgba(139,107,240,0.18); backdrop-filter:blur(4px); display:flex; align-items:flex-end; justify-content:center; z-index:100;}
+  .modal{background:rgba(255,255,255,0.85); backdrop-filter:blur(24px) saturate(180%); -webkit-backdrop-filter:blur(24px) saturate(180%); width:100%; max-width:480px; border-radius:20px 20px 0 0; padding:26px 24px 30px; max-height:88vh; overflow-y:auto; border:1px solid var(--glass-border);}
+  @media(min-width:640px){
+    .modal-bg{align-items:center;}
+    .modal{border-radius:18px;}
+  }
+  .modal h3{margin:0 0 18px; font-size:18px;}
+
+  /* ---------- Mobile bottom nav ---------- */
+  #bottomnav{display:none;}
+  #fab{display:none;}
+
+  @media(max-width:860px){
+    #sidebar{display:none;}
+    #main{padding:20px 16px 90px;}
+    .stats{grid-template-columns:1fr 1fr;}
+    .stats .stat:first-child{grid-column:1/3;}
+    .field-row{grid-template-columns:1fr;}
+    #invoice-paper{padding:26px 18px;}
+    .stamp{font-size:19px; top:40px; right:18px; padding:6px 12px;}
+    #bottomnav{
+      display:flex; position:fixed; bottom:0; left:0; right:0; background:var(--glass-strong); backdrop-filter:blur(20px) saturate(180%); -webkit-backdrop-filter:blur(20px) saturate(180%);
+      z-index:50; padding:8px 6px calc(8px + env(safe-area-inset-bottom)); justify-content:space-around;
+      border-top:1px solid var(--glass-border); box-shadow:0 -4px 20px rgba(89,90,180,0.12);
+    }
+    .bn-item{background:none; border:none; color:var(--slate-light); display:flex; flex-direction:column; align-items:center; gap:3px; font-size:10px; font-weight:700; padding:4px 10px; flex:1;}
+    .bn-item svg{width:19px; height:19px;}
+    .bn-item.active{color:var(--violet);}
+    #fab{
+      display:flex; position:fixed; bottom:74px; right:18px; width:54px; height:54px; border-radius:50%;
+      background:linear-gradient(135deg, var(--teal), var(--violet)); color:#fff; align-items:center; justify-content:center; font-size:28px; border:none;
+      box-shadow:0 10px 26px rgba(139,107,240,0.45); z-index:51; line-height:0;
+    }
+    .li-row{grid-template-columns:1fr 44px 70px 34px; }
+    .li-row input.li-price{display:none;}
+    .li-head{grid-template-columns:1fr 44px 70px 34px;}
+    .li-head span:nth-child(3){display:none;}
+  }
+
+  .logo-upload{display:flex; align-items:center; gap:12px;}
+  .logo-preview{width:64px; height:64px; border-radius:8px; border:1px solid var(--line); object-fit:contain; background:#fff;}
+  .helper{font-size:11.5px; color:var(--slate-light); margin-top:5px;}
+</style>
+
+</head>
+<body>
+<div class="blob blob1"></div>
+<div class="blob blob2"></div>
+<div class="blob blob3"></div>
+<div id="app">
+  <nav id="sidebar"></nav>
+  <main id="main"></main>
+</div>
+<div id="bottomnav"></div>
+<button id="fab" style="display:none;">+</button>
+<div id="modal-root"></div>
+
+<script>
+/* ===================== STATE ===================== */
+const STORE_KEY = 'ledgerInvoiceApp_v1';
+const ICONS = {
+  dashboard:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>',
+  invoices:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2h9l5 5v15H6z"/><path d="M9 9h6M9 13h6M9 17h4"/></svg>',
+  clients:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.2"/><path d="M2.5 20c0-4 3-6.5 6.5-6.5s6.5 2.5 6.5 6.5"/><circle cx="17.5" cy="8.5" r="2.4"/><path d="M15.8 13.7c2.7.4 4.7 2.5 4.7 6"/></svg>',
+  settings:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 13a1.7 1.7 0 000-2l1-1.7-1.7-1.7-1.7 1a1.7 1.7 0 00-2-1l-.3-2h-2.4l-.3 2a1.7 1.7 0 00-2 1l-1.7-1L6.6 9.3l1 1.7a1.7 1.7 0 000 2l-1 1.7 1.7 1.7 1.7-1a1.7 1.7 0 002 1l.3 2h2.4l.3-2a1.7 1.7 0 002-1l1.7 1 1.7-1.7z"/></svg>'
+};
+
+function loadData(){
+  const raw = localStorage.getItem(STORE_KEY);
+  if(raw){ try{ return JSON.parse(raw);}catch(e){} }
+  return {
+    business:{name:'Your Business', email:'', phone:'', address:'', logo:'', currency:'$', taxRate:0, invoicePrefix:'INV-', nextNumber:1},
+    clients:[],
+    invoices:[]
+  };
+}
+let data = loadData();
+function saveData(){ localStorage.setItem(STORE_KEY, JSON.stringify(data)); }
+
+let route = {view:'dashboard'};
+const uid = () => Math.random().toString(36).slice(2,10);
+const todayISO = () => new Date().toISOString().slice(0,10);
+const addDays = (iso,n) => { const d=new Date(iso); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); };
+const fmtDate = (iso) => { if(!iso) return '—'; const d=new Date(iso+'T00:00:00'); return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); };
+const fmtMoney = (n) => data.business.currency + (Math.round((n+Number.EPSILON)*100)/100).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+
+function calcInvoiceTotals(inv){
+  const sub = inv.items.reduce((s,i)=> s + (Number(i.qty)||0)*(Number(i.price)||0), 0);
+  const discount = Number(inv.discount)||0;
+  const taxable = Math.max(sub - discount, 0);
+  const tax = taxable * ((Number(inv.taxRate)||0)/100);
+  const total = taxable + tax;
+  return {sub, discount, tax, total};
+}
+function effectiveStatus(inv){
+  if(inv.status === 'paid' || inv.status === 'draft') return inv.status;
+  if(inv.dueDate && inv.dueDate < todayISO()) return 'overdue';
+  return 'sent';
+}
+function clientName(id){ const c = data.clients.find(c=>c.id===id); return c? c.name : 'No client'; }
+
+/* ===================== NAV ===================== */
+const NAV = [
+  {id:'dashboard', label:'Dashboard'},
+  {id:'invoices', label:'Invoices'},
+  {id:'clients', label:'Clients'},
+  {id:'settings', label:'Settings'}
+];
+
+function renderNav(){
+  document.getElementById('sidebar').innerHTML = `
+    <div class="brand">Ledger<span class="rule"></span></div>
+    ${NAV.map(n=>`<button class="navitem ${route.view===n.id?'active':''}" onclick="go('${n.id}')">${ICONS[n.id]}${n.label}</button>`).join('')}
+    <div class="sidebar-foot">${data.business.name}<br>Local invoicing, no cloud.</div>
+  `;
+  document.getElementById('bottomnav').innerHTML = NAV.map(n=>`
+    <button class="bn-item ${route.view===n.id?'active':''}" onclick="go('${n.id}')">${ICONS[n.id]}<span>${n.label}</span></button>
+  `).join('');
+  const fab = document.getElementById('fab');
+  fab.style.display = (route.view==='dashboard'||route.view==='invoices') ? 'flex':'none';
+  fab.onclick = () => openInvoiceEditor(null);
+}
+function go(view, param){
+  route = {view, param};
+  render();
+  window.scrollTo(0,0);
+}
+
+/* ===================== RENDER ROOT ===================== */
+function render(){
+  renderNav();
+  const main = document.getElementById('main');
+  if(route.view==='dashboard') main.innerHTML = viewDashboard();
+  else if(route.view==='invoices') main.innerHTML = viewInvoices();
+  else if(route.view==='invoice') main.innerHTML = viewInvoicePreview(route.param);
+  else if(route.view==='clients') main.innerHTML = viewClients();
+  else if(route.view==='client') main.innerHTML = viewClientDetail(route.param);
+  else if(route.view==='settings') main.innerHTML = viewSettings();
+}
+
+/* ===================== DASHBOARD ===================== */
+function viewDashboard(){
+  const invs = data.invoices;
+  const outstanding = invs.filter(i=>effectiveStatus(i)!=='paid' && effectiveStatus(i)!=='draft').reduce((s,i)=>s+calcInvoiceTotals(i).total,0);
+  const overdueCount = invs.filter(i=>effectiveStatus(i)==='overdue').length;
+  const now = new Date();
+  const paidThisMonth = invs.filter(i=> i.status==='paid' && i.paidDate && new Date(i.paidDate).getMonth()===now.getMonth() && new Date(i.paidDate).getFullYear()===now.getFullYear())
+    .reduce((s,i)=>s+calcInvoiceTotals(i).total,0);
+  const recent = [...invs].sort((a,b)=> (b.issueDate||'').localeCompare(a.issueDate||'')).slice(0,6);
+
+  return `
+    <div class="topbar">
+      <div><h1>Dashboard</h1><div class="sub">${data.business.name}</div></div>
+      <button class="btn brass" onclick="openInvoiceEditor(null)">+ New Invoice</button>
+    </div>
+    <div class="stats">
+      <div class="stat outstanding"><div class="label">Outstanding</div><div class="value mono">${fmtMoney(outstanding)}</div></div>
+      <div class="stat paid"><div class="label">Paid this month</div><div class="value mono">${fmtMoney(paidThisMonth)}</div></div>
+      <div class="stat overdue"><div class="label">Overdue</div><div class="value mono">${overdueCount}</div></div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><h3>Recent invoices</h3><button class="btn ghost sm" onclick="go('invoices')">View all</button></div>
+      ${recent.length? recent.map(rowInvoice).join('') : `<div class="empty"><div class="display">Nothing here yet</div>Create your first invoice to see it show up.</div>`}
+    </div>
+  `;
+}
+function rowInvoice(inv){
+  const st = effectiveStatus(inv);
+  const {total} = calcInvoiceTotals(inv);
+  return `
+    <div class="row-item" onclick="go('invoice','${inv.id}')">
+      <div class="row-left">
+        <div class="row-title">${inv.number} — ${clientName(inv.clientId)}</div>
+        <div class="row-sub">Due ${fmtDate(inv.dueDate)}</div>
+      </div>
+      <div class="row-right">
+        <div class="row-amount">${fmtMoney(total)}</div>
+        <span class="tag ${st}">${st}</span>
+      </div>
+    </div>`;
+}
+
+/* ===================== INVOICES LIST ===================== */
+let invoiceFilter = 'all';
+let invoiceSearch = '';
+function viewInvoices(){
+  let list = data.invoices.filter(i=>{
+    const st = effectiveStatus(i);
+    const matchesFilter = invoiceFilter==='all' || st===invoiceFilter;
+    const matchesSearch = !invoiceSearch || (i.number+clientName(i.clientId)).toLowerCase().includes(invoiceSearch.toLowerCase());
+    return matchesFilter && matchesSearch;
+  }).sort((a,b)=> (b.issueDate||'').localeCompare(a.issueDate||''));
+
+  const chips = ['all','draft','sent','overdue','paid'];
+  return `
+    <div class="topbar">
+      <div><h1>Invoices</h1><div class="sub">${data.invoices.length} total</div></div>
+      <button class="btn brass" onclick="openInvoiceEditor(null)">+ New Invoice</button>
+    </div>
+    <div class="toolbar">
+      <input type="text" placeholder="Search by client or number…" value="${invoiceSearch}" oninput="invoiceSearch=this.value; go('invoices')">
+    </div>
+    <div class="chip-row" style="margin-bottom:16px;">
+      ${chips.map(c=>`<button class="chip ${invoiceFilter===c?'active':''}" onclick="invoiceFilter='${c}'; go('invoices')">${c}</button>`).join('')}
+    </div>
+    <div class="panel">
+      ${list.length? list.map(rowInvoice).join('') : `<div class="empty"><div class="display">No matching invoices</div>Try a different filter or search.</div>`}
+    </div>
+  `;
+}
+
+/* ===================== INVOICE EDITOR (modal) ===================== */
+let editingInvoice = null;
+function openInvoiceEditor(id){
+  const existing = id ? data.invoices.find(i=>i.id===id) : null;
+  editingInvoice = existing ? JSON.parse(JSON.stringify(existing)) : {
+    id: uid(),
+    number: data.business.invoicePrefix + String(data.business.nextNumber).padStart(4,'0'),
+    clientId: data.clients[0]?.id || '',
+    issueDate: todayISO(),
+    dueDate: addDays(todayISO(),14),
+    items:[{desc:'',qty:1,price:0}],
+    taxRate: data.business.taxRate || 0,
+    discount:0,
+    notes:'',
+    status:'draft'
+  };
+  renderInvoiceModal();
+}
+function renderInvoiceModal(){
+  const inv = editingInvoice;
+  const totals = calcInvoiceTotals(inv);
+  document.getElementById('modal-root').innerHTML = `
+    <div class="modal-bg" onclick="if(event.target===this) closeModal()">
+      <div class="modal">
+        <h3>${data.invoices.find(i=>i.id===inv.id) ? 'Edit invoice' : 'New invoice'}</h3>
+        <div class="form-wrap">
+          <div class="field-row">
+            <div class="field"><label>Client</label>
+              <select onchange="editingInvoice.clientId=this.value">
+                <option value="">— select client —</option>
+                ${data.clients.map(c=>`<option value="${c.id}" ${c.id===inv.clientId?'selected':''}>${c.name}</option>`).join('')}
+              </select>
+            </div>
+            <div class="field"><label>Invoice #</label>
+              <input type="text" value="${inv.number}" oninput="editingInvoice.number=this.value">
+            </div>
+          </div>
+          <button class="btn ghost sm" style="margin:-8px 0 16px;" onclick="quickAddClientFromInvoice()">+ Add new client</button>
+          <div class="field-row">
+            <div class="field"><label>Issue date</label><input type="date" value="${inv.issueDate}" onchange="editingInvoice.issueDate=this.value"></div>
+            <div class="field"><label>Due date</label><input type="date" value="${inv.dueDate}" onchange="editingInvoice.dueDate=this.value"></div>
+          </div>
+
+          <div class="field"><label>Line items</label>
+            <div class="li-head"><span>Description</span><span>Qty</span><span>Price</span><span>Total</span><span></span></div>
+            <div id="li-list">
+              ${inv.items.map((it,idx)=>`
+                <div class="li-row">
+                  <input type="text" placeholder="Mowing, mulch, etc." value="${it.desc}" oninput="editingInvoice.items[${idx}].desc=this.value">
+                  <input type="number" min="0" step="1" value="${it.qty}" oninput="editingInvoice.items[${idx}].qty=this.value; renderInvoiceModal()">
+                  <input class="li-price" type="number" min="0" step="0.01" value="${it.price}" oninput="editingInvoice.items[${idx}].price=this.value; renderInvoiceModal()">
+                  <div class="li-total">${fmtMoney((Number(it.qty)||0)*(Number(it.price)||0))}</div>
+                  <button class="li-del" onclick="editingInvoice.items.splice(${idx},1); renderInvoiceModal()">×</button>
+                </div>`).join('')}
+            </div>
+            <button class="btn ghost sm" onclick="editingInvoice.items.push({desc:'',qty:1,price:0}); renderInvoiceModal()">+ Add line item</button>
+          </div>
+
+          <div class="field-row">
+            <div class="field"><label>Tax rate (%)</label><input type="number" min="0" step="0.1" value="${inv.taxRate}" oninput="editingInvoice.taxRate=this.value; renderInvoiceModal()"></div>
+            <div class="field"><label>Discount (${data.business.currency})</label><input type="number" min="0" step="0.01" value="${inv.discount}" oninput="editingInvoice.discount=this.value; renderInvoiceModal()"></div>
+          </div>
+          <div class="field"><label>Notes</label><textarea oninput="editingInvoice.notes=this.value">${inv.notes}</textarea></div>
+
+          <div class="totals-box">
+            <div class="totals-line"><span>Subtotal</span><span class="mono">${fmtMoney(totals.sub)}</span></div>
+            <div class="totals-line"><span>Discount</span><span class="mono">−${fmtMoney(totals.discount)}</span></div>
+            <div class="totals-line"><span>Tax</span><span class="mono">${fmtMoney(totals.tax)}</span></div>
+            <div class="totals-line grand"><span>Total</span><span>${fmtMoney(totals.total)}</span></div>
+          </div>
+
+          <div class="action-row">
+            <button class="btn ghost" onclick="closeModal()">Cancel</button>
+            <button class="btn ghost" onclick="saveInvoice('draft')">Save as draft</button>
+            <button class="btn brass" onclick="saveInvoice('sent')">Save & mark sent</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+function quickAddClientFromInvoice(){
+  openClientModal(null, (newClient)=>{
+    editingInvoice.clientId = newClient.id;
+    renderInvoiceModal();
+  });
+}
+function saveInvoice(status){
+  const inv = editingInvoice;
+  if(!inv.clientId){ alert('Please select or add a client.'); return; }
+  inv.items = inv.items.filter(i=> i.desc.trim() !== '' || Number(i.price)>0);
+  if(inv.items.length===0) inv.items = [{desc:'Service', qty:1, price:0}];
+  const wasNew = !data.invoices.find(i=>i.id===inv.id);
+  inv.status = (inv.status==='paid') ? 'paid' : status;
+  if(wasNew){
+    data.invoices.push(inv);
+    data.business.nextNumber += 1;
+  } else {
+    const idx = data.invoices.findIndex(i=>i.id===inv.id);
+    data.invoices[idx] = inv;
+  }
+  saveData();
+  closeModal();
+  go('invoice', inv.id);
+}
+function closeModal(){ document.getElementById('modal-root').innerHTML=''; editingInvoice=null; editingClient=null; }
+
+/* ===================== INVOICE PREVIEW ===================== */
+function viewInvoicePreview(id){
+  const inv = data.invoices.find(i=>i.id===id);
+  if(!inv) return `<div class="empty">Invoice not found.</div>`;
+  const client = data.clients.find(c=>c.id===inv.clientId);
+  const totals = calcInvoiceTotals(inv);
+  const st = effectiveStatus(inv);
+  const biz = data.business;
+
+  return `
+    <div class="topbar">
+      <div><h1>${inv.number}</h1><div class="sub">${clientName(inv.clientId)} · ${fmtMoney(totals.total)}</div></div>
+      <span class="tag ${st}" style="align-self:center;">${st}</span>
+    </div>
+    <div class="action-row">
+      <button class="btn ghost" onclick="go('invoices')">← Back</button>
+      <button class="btn ghost" onclick="openInvoiceEditor('${inv.id}')">Edit</button>
+      ${st!=='paid' ? `<button class="btn brass" onclick="markPaid('${inv.id}')">Mark as paid</button>` : ''}
+      <button class="btn ghost" onclick="downloadPNG('${inv.id}')">Download PNG</button>
+      <button class="btn danger" onclick="deleteInvoice('${inv.id}')">Delete</button>
+    </div>
+    <div class="preview-wrap">
+      <div id="invoice-paper">
+        ${st!=='draft' ? `<div class="stamp ${st}">${st}</div>` : ''}
+        <div class="paper-head">
+          <div>
+            ${biz.logo ? `<img src="${biz.logo}">` : `<div class="biz-name">${biz.name}</div>`}
+            ${biz.logo ? `<div class="biz-name" style="margin-top:8px;">${biz.name}</div>`:''}
+            <div class="biz-meta">${biz.address||''}${biz.address?'<br>':''}${biz.email||''} ${biz.phone? '· '+biz.phone : ''}</div>
+          </div>
+          <div class="inv-meta">
+            <div class="inv-label">Invoice</div>
+            <div class="inv-num">${inv.number}</div>
+            <div class="inv-dates">Issued ${fmtDate(inv.issueDate)}<br>Due ${fmtDate(inv.dueDate)}</div>
+          </div>
+        </div>
+        <div class="bill-to">Bill to</div>
+        <div class="bill-to-name">${client? client.name : 'No client'}</div>
+        <div class="bill-to-meta">${client?.address||''}${client?.address?'<br>':''}${client?.email||''}</div>
+
+        <table class="items">
+          <thead><tr><th>Description</th><th class="num">Qty</th><th class="num">Price</th><th class="num">Amount</th></tr></thead>
+          <tbody>
+            ${inv.items.map(it=>`<tr><td>${it.desc}</td><td class="num">${it.qty}</td><td class="num">${fmtMoney(Number(it.price))}</td><td class="num">${fmtMoney(Number(it.qty)*Number(it.price))}</td></tr>`).join('')}
+          </tbody>
+        </table>
+        <div class="paper-totals">
+          <div class="tline"><span>Subtotal</span><span>${fmtMoney(totals.sub)}</span></div>
+          ${totals.discount>0?`<div class="tline"><span>Discount</span><span>−${fmtMoney(totals.discount)}</span></div>`:''}
+          ${totals.tax>0?`<div class="tline"><span>Tax (${inv.taxRate}%)</span><span>${fmtMoney(totals.tax)}</span></div>`:''}
+          <div class="tline grand"><span>Total due</span><span>${fmtMoney(totals.total)}</span></div>
+        </div>
+        ${inv.notes? `<div class="paper-notes">${inv.notes}</div>`:''}
+        <div class="paper-foot">Thank you for your business.</div>
+      </div>
+    </div>
+  `;
+}
+function markPaid(id){
+  const inv = data.invoices.find(i=>i.id===id);
+  inv.status = 'paid';
+  inv.paidDate = todayISO();
+  saveData();
+  go('invoice', id);
+}
+function deleteInvoice(id){
+  if(!confirm('Delete this invoice? This cannot be undone.')) return;
+  data.invoices = data.invoices.filter(i=>i.id!==id);
+  saveData();
+  go('invoices');
+}
+function downloadPNG(id){
+  const inv = data.invoices.find(i=>i.id===id);
+  const node = document.getElementById('invoice-paper');
+  html2canvas(node, {scale:2, backgroundColor:'#ffffff'}).then(canvas=>{
+    const link = document.createElement('a');
+    link.download = `${inv.number}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  });
+}
+
+/* ===================== CLIENTS ===================== */
+let clientSearch = '';
+function viewClients(){
+  const list = data.clients.filter(c=> !clientSearch || c.name.toLowerCase().includes(clientSearch.toLowerCase()));
+  return `
+    <div class="topbar">
+      <div><h1>Clients</h1><div class="sub">${data.clients.length} total</div></div>
+      <button class="btn brass" onclick="openClientModal(null)">+ Add client</button>
+    </div>
+    <div class="toolbar">
+      <input type="text" placeholder="Search clients…" value="${clientSearch}" oninput="clientSearch=this.value; go('clients')">
+    </div>
+    <div class="panel">
+      ${list.length ? list.map(c=>{
+        const invCount = data.invoices.filter(i=>i.clientId===c.id).length;
+        return `<div class="row-item" onclick="go('client','${c.id}')">
+          <div class="row-left"><div class="row-title">${c.name}</div><div class="row-sub">${c.email||'No email'}</div></div>
+          <div class="row-right"><div class="row-sub">${invCount} invoice${invCount!==1?'s':''}</div></div>
+        </div>`;
+      }).join('') : `<div class="empty"><div class="display">No clients yet</div>Add your first client to start invoicing.</div>`}
+    </div>
+  `;
+}
+function viewClientDetail(id){
+  const c = data.clients.find(c=>c.id===id);
+  if(!c) return `<div class="empty">Client not found.</div>`;
+  const invs = data.invoices.filter(i=>i.clientId===id).sort((a,b)=>(b.issueDate||'').localeCompare(a.issueDate||''));
+  return `
+    <div class="topbar">
+      <div><h1>${c.name}</h1><div class="sub">${c.email||''} ${c.phone? '· '+c.phone:''}</div></div>
+      <div style="display:flex; gap:8px;">
+        <button class="btn ghost" onclick="openClientModal('${c.id}')">Edit</button>
+        <button class="btn brass" onclick="openInvoiceEditor(null); editingInvoice.clientId='${c.id}'; renderInvoiceModal();">+ New invoice</button>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><h3>Invoices</h3></div>
+      ${invs.length? invs.map(rowInvoice).join('') : `<div class="empty">No invoices for this client yet.</div>`}
+    </div>
+    <div style="margin-top:16px;"><button class="btn danger" onclick="deleteClient('${c.id}')">Delete client</button></div>
+  `;
+}
+let editingClient = null;
+let onClientSaved = null;
+function openClientModal(id, callback){
+  const existing = id ? data.clients.find(c=>c.id===id) : null;
+  editingClient = existing ? {...existing} : {id:uid(), name:'', email:'', phone:'', address:''};
+  onClientSaved = callback || null;
+  document.getElementById('modal-root').innerHTML = `
+    <div class="modal-bg" onclick="if(event.target===this) closeModal()">
+      <div class="modal">
+        <h3>${existing? 'Edit client' : 'Add client'}</h3>
+        <div class="field"><label>Name</label><input type="text" value="${editingClient.name}" oninput="editingClient.name=this.value" placeholder="Client or business name"></div>
+        <div class="field"><label>Email</label><input type="email" value="${editingClient.email}" oninput="editingClient.email=this.value"></div>
+        <div class="field"><label>Phone</label><input type="text" value="${editingClient.phone}" oninput="editingClient.phone=this.value"></div>
+        <div class="field"><label>Address</label><textarea oninput="editingClient.address=this.value">${editingClient.address}</textarea></div>
+        <div class="action-row">
+          <button class="btn ghost" onclick="closeModal()">Cancel</button>
+          <button class="btn brass" onclick="saveClient()">Save client</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+function saveClient(){
+  if(!editingClient.name.trim()){ alert('Please enter a name.'); return; }
+  const idx = data.clients.findIndex(c=>c.id===editingClient.id);
+  if(idx>=0) data.clients[idx] = editingClient;
+  else data.clients.push(editingClient);
+  saveData();
+  const saved = editingClient;
+  const cb = onClientSaved;
+  closeModal();
+  if(cb) cb(saved); else go('clients');
+}
+function deleteClient(id){
+  if(!confirm('Delete this client? Their invoices will remain but show "No client".')) return;
+  data.clients = data.clients.filter(c=>c.id!==id);
+  saveData();
+  go('clients');
+}
+
+/* ===================== SETTINGS ===================== */
+function viewSettings(){
+  const b = data.business;
+  return `
+    <div class="topbar"><div><h1>Settings</h1><div class="sub">Business profile & invoice defaults</div></div></div>
+    <div class="form-wrap">
+      <div class="field"><label>Business name</label><input type="text" id="s-name" value="${b.name}"></div>
+      <div class="field">
+        <label>Logo</label>
+        <div class="logo-upload">
+          ${b.logo? `<img src="${b.logo}" class="logo-preview">` : ''}
+          <input type="file" accept="image/*" id="s-logo" onchange="handleLogoUpload(event)">
+        </div>
+        <div class="helper">PNG or JPG, shown on invoice header.</div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Email</label><input type="email" id="s-email" value="${b.email}"></div>
+        <div class="field"><label>Phone</label><input type="text" id="s-phone" value="${b.phone}"></div>
+      </div>
+      <div class="field"><label>Address</label><textarea id="s-address">${b.address}</textarea></div>
+      <div class="field-row">
+        <div class="field"><label>Currency symbol</label><input type="text" id="s-currency" value="${b.currency}"></div>
+        <div class="field"><label>Default tax rate (%)</label><input type="number" step="0.1" id="s-tax" value="${b.taxRate}"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Invoice prefix</label><input type="text" id="s-prefix" value="${b.invoicePrefix}"></div>
+        <div class="field"><label>Next invoice number</label><input type="number" id="s-next" value="${b.nextNumber}"></div>
+      </div>
+      <button class="btn brass" onclick="saveSettings()">Save settings</button>
+      <div style="margin-top:36px; padding-top:20px; border-top:1px solid var(--line);">
+        <div class="sub" style="margin-bottom:10px;">Data lives only in this browser (localStorage). Export a backup before clearing site data.</div>
+        <button class="btn ghost sm" onclick="exportBackup()">Export backup (.json)</button>
+      </div>
+    </div>
+  `;
+}
+function handleLogoUpload(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev)=>{ data.business.logo = ev.target.result; saveData(); go('settings'); };
+  reader.readAsDataURL(file);
+}
+function saveSettings(){
+  const b = data.business;
+  b.name = document.getElementById('s-name').value;
+  b.email = document.getElementById('s-email').value;
+  b.phone = document.getElementById('s-phone').value;
+  b.address = document.getElementById('s-address').value;
+  b.currency = document.getElementById('s-currency').value || '$';
+  b.taxRate = Number(document.getElementById('s-tax').value)||0;
+  b.invoicePrefix = document.getElementById('s-prefix').value || 'INV-';
+  b.nextNumber = Number(document.getElementById('s-next').value)||1;
+  saveData();
+  go('settings');
+}
+function exportBackup(){
+  const blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
+  const link = document.createElement('a');
+  link.download = 'invoice-app-backup.json';
+  link.href = URL.createObjectURL(blob);
+  link.click();
+}
+
+/* ===================== INIT ===================== */
+render();
+</script>
+</body>
+</html>
