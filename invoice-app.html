@@ -711,7 +711,11 @@ function viewSettings(){
       <button class="btn brass" onclick="saveSettings()">Save settings</button>
       <div style="margin-top:36px; padding-top:20px; border-top:1px solid var(--line);">
         <div class="sub" style="margin-bottom:10px;">Data lives only in this browser (localStorage). Export a backup before clearing site data.</div>
-        <button class="btn ghost sm" onclick="exportBackup()">Export backup (.json)</button>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button class="btn ghost sm" onclick="exportBackup()">Export backup (.json)</button>
+          <button class="btn ghost sm" onclick="document.getElementById('import-file-input').click()">Import backup (.json)</button>
+          <input type="file" id="import-file-input" accept="application/json,.json" style="display:none" onchange="handleImportBackup(event)">
+        </div>
       </div>
     </div>
   `;
@@ -742,6 +746,41 @@ function exportBackup(){
   link.download = 'invoice-app-backup.json';
   link.href = URL.createObjectURL(blob);
   link.click();
+}
+function handleImportBackup(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev)=>{
+    let parsed;
+    try{
+      parsed = JSON.parse(ev.target.result);
+    }catch(err){
+      alert('That file isn\'t valid JSON — could not read it as a backup.');
+      e.target.value = '';
+      return;
+    }
+    const looksValid = parsed && typeof parsed === 'object'
+      && parsed.business && typeof parsed.business === 'object'
+      && Array.isArray(parsed.clients) && Array.isArray(parsed.invoices);
+    if(!looksValid){
+      alert('This doesn\'t look like a Ledger backup file (missing business/clients/invoices).');
+      e.target.value = '';
+      return;
+    }
+    const summary = `${parsed.clients.length} client${parsed.clients.length!==1?'s':''}, ${parsed.invoices.length} invoice${parsed.invoices.length!==1?'s':''}`;
+    const proceed = confirm(`Import this backup (${summary})?\n\nThis will REPLACE all current data in this browser. This cannot be undone — export a backup of your current data first if you're not sure.`);
+    if(!proceed){ e.target.value=''; return; }
+    data = parsed;
+    if(!data.business.currency) data.business.currency = '$';
+    if(!data.business.invoicePrefix) data.business.invoicePrefix = 'INV-';
+    if(!data.business.nextNumber) data.business.nextNumber = 1;
+    saveData();
+    e.target.value = '';
+    go('dashboard');
+    alert('Backup imported successfully.');
+  };
+  reader.readAsText(file);
 }
 
 /* ===================== INIT ===================== */
