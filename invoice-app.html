@@ -136,7 +136,10 @@
 
   /* line items editor */
   .li-row{display:grid; grid-template-columns:1fr 60px 90px 90px 34px; gap:8px; align-items:center; margin-bottom:8px;}
-  .li-row input{padding:9px 10px; border:1px solid var(--glass-border); border-radius:8px; background:rgba(255,255,255,0.7);}
+  .li-row input{padding:9px 10px; border:1px solid var(--glass-border); border-radius:8px; background:rgba(255,255,255,0.7); width:100%;}
+  .li-sub{display:contents;}
+  .li-field{display:flex; flex-direction:column;}
+  .li-mini{display:none;}
   .li-total{font-family:'IBM Plex Mono',monospace; font-size:13.5px; text-align:right; color:var(--slate);}
   .li-del{background:none; border:none; color:var(--slate-light); font-size:18px; line-height:1;}
   .li-del:hover{color:var(--coral);}
@@ -222,10 +225,14 @@
       background:linear-gradient(135deg, var(--teal), var(--violet)); color:#fff; align-items:center; justify-content:center; font-size:28px; border:none;
       box-shadow:0 10px 26px rgba(139,107,240,0.45); z-index:51; line-height:0;
     }
-    .li-row{grid-template-columns:1fr 44px 70px 34px; }
-    .li-row input.li-price{display:none;}
-    .li-head{grid-template-columns:1fr 44px 70px 34px;}
-    .li-head span:nth-child(3){display:none;}
+    .li-row{display:block; padding:10px; border:1px solid var(--glass-border); border-radius:10px; background:rgba(255,255,255,0.4); margin-bottom:10px;}
+    .li-row .li-desc{margin-bottom:8px;}
+    .li-sub{display:flex; gap:8px; align-items:flex-end;}
+    .li-field{flex:1; min-width:0;}
+    .li-mini{display:block; font-size:9.5px; text-transform:uppercase; letter-spacing:0.05em; color:var(--slate-light); font-weight:700; margin-bottom:3px;}
+    .li-sub .li-total{padding:9px 10px; border:1px solid var(--glass-border); border-radius:8px; background:rgba(255,255,255,0.5); text-align:left;}
+    .li-sub .li-del{flex:0 0 auto; padding-bottom:9px; font-size:20px;}
+    .li-head{display:none;}
   }
 
   .logo-upload{display:flex; align-items:center; gap:12px;}
@@ -448,11 +455,13 @@ function renderInvoiceModal(){
             <div id="li-list">
               ${inv.items.map((it,idx)=>`
                 <div class="li-row">
-                  <input type="text" placeholder="Mowing, mulch, etc." value="${it.desc}" oninput="editingInvoice.items[${idx}].desc=this.value">
-                  <input type="number" min="0" step="1" value="${it.qty}" oninput="editingInvoice.items[${idx}].qty=this.value; renderInvoiceModal()">
-                  <input class="li-price" type="number" min="0" step="0.01" value="${it.price}" oninput="editingInvoice.items[${idx}].price=this.value; renderInvoiceModal()">
-                  <div class="li-total">${fmtMoney((Number(it.qty)||0)*(Number(it.price)||0))}</div>
-                  <button class="li-del" onclick="editingInvoice.items.splice(${idx},1); renderInvoiceModal()">×</button>
+                  <input class="li-desc" type="text" placeholder="Mowing, mulch, etc." value="${it.desc}" oninput="editingInvoice.items[${idx}].desc=this.value">
+                  <div class="li-sub">
+                    <div class="li-field"><span class="li-mini">Qty</span><input type="number" min="0" step="1" value="${it.qty}" oninput="editingInvoice.items[${idx}].qty=this.value; renderInvoiceModal()"></div>
+                    <div class="li-field"><span class="li-mini">Price</span><input class="li-price" type="number" min="0" step="0.01" value="${it.price}" oninput="editingInvoice.items[${idx}].price=this.value; renderInvoiceModal()"></div>
+                    <div class="li-field"><span class="li-mini">Total</span><div class="li-total">${fmtMoney((Number(it.qty)||0)*(Number(it.price)||0))}</div></div>
+                    <button class="li-del" onclick="editingInvoice.items.splice(${idx},1); renderInvoiceModal()">×</button>
+                  </div>
                 </div>`).join('')}
             </div>
             <button class="btn ghost sm" onclick="editingInvoice.items.push({desc:'',qty:1,price:0}); renderInvoiceModal()">+ Add line item</button>
